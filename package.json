@@ -1,0 +1,16 @@
+
+{
+  "name": "projection-mapping",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @projection/shared",
+    "typecheck:shared": "npm run typecheck -w @projection/shared",
+    "test:shared": "npm run test -w @projection/shared",
+    "test:shared:watch": "npm run test:watch -w @projection/shared"
+  }
+}
