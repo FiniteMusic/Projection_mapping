@@ -1,0 +1,2 @@
+packages/server/storage/media/*
+!packages/server/storage/media/.gitkeep
