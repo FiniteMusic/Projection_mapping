@@ -190,9 +190,7 @@ export async function getProjectMediaUrls(
 
 
 
-interface ProjectMediaRow extends RowDataPacket {
-  url: string;
-}
+
 
 export async function deleteProject(
   id: string,

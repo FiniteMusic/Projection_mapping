@@ -85,4 +85,17 @@ export async function getMediaFileForUser(fileName, userId) {
     const row = rows[0];
     return row ? mapMedia(row) : null;
 }
+export async function getMediaFileForProject(fileName, projectId) {
+    const [rows] = await pool.execute(`SELECT *
+     FROM media
+     WHERE url = ?
+       AND project_id = ?
+       AND status = 'ready'
+     LIMIT 1`, [
+        `/api/media/files/${fileName}`,
+        projectId
+    ]);
+    const row = rows[0];
+    return row ? mapMedia(row) : null;
+}
 //# sourceMappingURL=media.repository.js.map

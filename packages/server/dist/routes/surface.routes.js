@@ -1,7 +1,10 @@
 import { Router } from "express";
-import { createSurfaceRequestSchema, updateSurfaceRequestSchema } from "@projection/shared";
+import { createSurfaceRequestSchema, updateSurfaceRequestSchema, getSessionRoom, SERVER_SOCKET_EVENTS } from "@projection/shared";
 import { requireAuth } from "../middleware/auth.middleware.js";
 import { createSurface, deleteSurface, getSurfaceForUser, getSurfacesByProject, mediaBelongsToProject, projectBelongsToUser, updateSurface } from "../repositories/surface.repository.js";
+import { getActiveSessionIdsByProject } from "../repositories/session.repository.js";
+import { getProjectById } from "../repositories/project.repository.js";
+import { getMediaByProject } from "../repositories/media.repository.js";
 export const surfaceRouter = Router();
 surfaceRouter.use(requireAuth);
 surfaceRouter.post("/projects/:projectId/surfaces", async (req, res) => {
@@ -87,6 +90,36 @@ surfaceRouter.patch("/surfaces/:surfaceId", async (req, res) => {
         return;
     }
     res.status(200).json({ surface });
+    if (changes.mediaId !== undefined) {
+        try {
+            const io = req.app.get("io");
+            const projectId = surface.projectId;
+            const sessionIds = await getActiveSessionIdsByProject(projectId);
+            if (sessionIds.length > 0) {
+                const project = await getProjectById(projectId);
+                if (!project) {
+                    console.warn("[Socket.IO] Project not found:", projectId);
+                    return;
+                }
+                const [surfaces, media] = await Promise.all([
+                    getSurfacesByProject(projectId),
+                    getMediaByProject(projectId)
+                ]);
+                for (const sessionId of sessionIds) {
+                    io.to(getSessionRoom(sessionId)).emit(SERVER_SOCKET_EVENTS.SCENE_LOAD, {
+                        sessionId,
+                        project,
+                        surfaces,
+                        media
+                    });
+                }
+                console.log(`[Socket.IO] Scene synchronized for ${sessionIds.length} sessions`);
+            }
+        }
+        catch (error) {
+            console.error("[Socket.IO] Scene synchronization failed:", error);
+        }
+    }
 });
 surfaceRouter.delete("/surfaces/:surfaceId", async (req, res) => {
     const deleted = await deleteSurface(String(req.params.surfaceId), req.user.id);

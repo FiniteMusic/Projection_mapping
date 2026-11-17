@@ -91,6 +91,12 @@ export interface SurfaceUpdatedPayload {
     surfaceId: UUID;
     changes: SurfaceCalibrationChanges;
 }
+export interface SurfaceMediaUpdatePayload {
+    sessionId: UUID;
+    surfaceId: UUID;
+    mediaId: UUID | null;
+    media: MediaAsset | null;
+}
 /**
  * Notificación de eliminación.
  *
@@ -187,6 +193,7 @@ export interface ServerToClientEvents {
     "scene:load": (payload: SceneLoadPayload) => void;
     "surface:create": (payload: SurfaceCreatePayload) => void;
     "surface:update": (payload: SurfaceUpdatedPayload) => void;
+    "surface:media-update": (payload: SurfaceMediaUpdatePayload) => void;
     "surface:delete": (payload: SurfaceDeletePayload) => void;
     "media:play": (payload: MediaPlayPayload) => void;
     "media:pause": (payload: MediaPausePayload) => void;

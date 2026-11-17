@@ -92,4 +92,11 @@ export async function resetPlayerConnections() {
        AND player_connection_status = 'connected'`);
     return result.affectedRows;
 }
+export async function getActiveSessionIdsByProject(projectId) {
+    const [rows] = await pool.execute(`SELECT id
+     FROM sessions
+     WHERE project_id = ?
+       AND status <> 'ended'`, [projectId]);
+    return rows.map(row => row.id);
+}
 //# sourceMappingURL=session.repository.js.map

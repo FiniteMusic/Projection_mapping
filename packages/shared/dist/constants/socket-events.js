@@ -28,6 +28,7 @@ export const SERVER_SOCKET_EVENTS = {
     SCENE_LOAD: "scene:load",
     SURFACE_CREATE: "surface:create",
     SURFACE_UPDATE: "surface:update",
+    SURFACE_MEDIA_UPDATE: "surface:media-update",
     SURFACE_DELETE: "surface:delete",
     MEDIA_PLAY: "media:play",
     MEDIA_PAUSE: "media:pause",

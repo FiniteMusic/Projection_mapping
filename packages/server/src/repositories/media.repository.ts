@@ -181,3 +181,27 @@ export async function getMediaFileForUser(
   const row = rows[0];
   return row ? mapMedia(row) : null;
 }
+
+
+
+export async function getMediaFileForProject(
+  fileName: string,
+  projectId: string
+): Promise<MediaAsset | null> {
+  const [rows] = await pool.execute<MediaRow[]>(
+    `SELECT *
+     FROM media
+     WHERE url = ?
+       AND project_id = ?
+       AND status = 'ready'
+     LIMIT 1`,
+    [
+      `/api/media/files/${fileName}`,
+      projectId
+    ]
+  );
+
+  const row = rows[0];
+
+  return row ? mapMedia(row) : null;
+}

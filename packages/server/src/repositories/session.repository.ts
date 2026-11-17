@@ -160,3 +160,21 @@ export async function resetPlayerConnections(): Promise<number> {
 
   return result.affectedRows;
 }
+
+
+
+export async function getActiveSessionIdsByProject(
+  projectId: string
+): Promise<string[]> {
+  const [rows] = await pool.execute<
+    (RowDataPacket & { id: string })[]
+  >(
+    `SELECT id
+     FROM sessions
+     WHERE project_id = ?
+       AND status <> 'ended'`,
+    [projectId]
+  );
+
+  return rows.map(row => row.id);
+}

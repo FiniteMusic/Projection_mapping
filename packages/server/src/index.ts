@@ -13,10 +13,28 @@ import { surfaceRouter } from "./routes/surface.routes.js";
 import { mediaRouter } from "./routes/media.routes.js";
 import { sessionRouter } from "./routes/session.routes.js";
 import { pairingRouter } from "./routes/pairing.routes.js";
+import { playerMediaRouter } from "./routes/player-media.routes.js";
 import { authenticateSocket } from "./middleware/socket-auth.middleware.js";
-import { getSessionRoom } from "@projection/shared";
+import {
+  getSessionRoom,
+  quadSchema,
+  SERVER_SOCKET_EVENTS,
+  CLIENT_SOCKET_EVENTS,
+  type SurfaceUpdatePayload,
+  type SocketAck,
+  type SocketOperationAccepted
+} from "@projection/shared";
 import { synchronizePlayerPresence } from "./services/player-presence.service.js";
 import { resetPlayerConnections } from "./repositories/session.repository.js";
+import { getSessionById } from "./repositories/session.repository.js";
+import { getSurfaceById } from "./repositories/surface.repository.js";
+
+import { getProjectById } from "./repositories/project.repository.js";
+import { getSurfacesByProject } from "./repositories/surface.repository.js";
+import { getMediaByProject } from "./repositories/media.repository.js";
+
+
+
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 3000);
@@ -45,14 +63,13 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
-
 app.use("/api/sessions/pairing", pairingRouter);
-
 app.use("/api/projects", projectRouter);
 app.use("/api/sessions", sessionRouter);
-
+app.use("/api/player", playerMediaRouter);
 app.use("/api", surfaceRouter);
 app.use("/api", mediaRouter);
+
 
 io.on("connection", async (socket) => {
   const { role, sessionId } = socket.data;
@@ -96,6 +113,87 @@ io.on("connection", async (socket) => {
       });
     });
 
+    socket.on(
+      CLIENT_SOCKET_EVENTS.SURFACE_UPDATE,
+      async (
+        payload: SurfaceUpdatePayload,
+        callback: (
+          response: SocketAck<SocketOperationAccepted>
+        ) => void
+      ) => {
+        const reject = (code: string, message: string): void => {
+          callback({
+            ok: false,
+            error: { code, message }
+          });
+        };
+
+        if (socket.data.role !== "controller") {
+          reject("FORBIDDEN", "Only controllers can update surfaces");
+          return;
+        }
+
+        if (
+          !payload ||
+          typeof payload !== "object" ||
+          payload.sessionId !== sessionId ||
+          typeof payload.surfaceId !== "string"
+        ) {
+          reject("INVALID_PAYLOAD", "Invalid surface update payload");
+          return;
+        }
+
+        const corners = quadSchema.safeParse(
+          payload.changes?.corners
+        );
+
+        if (!corners.success) {
+          reject("INVALID_CORNERS", "Invalid surface coordinates");
+          return;
+        }
+
+        try {
+          const session = await getSessionById(sessionId);
+
+          if (!session || session.status === "ended") {
+            reject("SESSION_NOT_FOUND", "Session is not active");
+            return;
+          }
+
+          const surface = await getSurfaceById(payload.surfaceId);
+
+          if (!surface || surface.projectId !== session.projectId) {
+            reject("SURFACE_NOT_FOUND", "Surface does not belong to this project");
+            return;
+          }
+
+          socket.to(room).emit(
+            SERVER_SOCKET_EVENTS.SURFACE_UPDATE,
+            {
+              sessionId,
+              surfaceId: surface.id,
+              changes: {
+                corners: corners.data
+              }
+            }
+          );
+
+          callback({
+            ok: true,
+            data: {
+              accepted: true
+            }
+          });
+        } catch (error) {
+          console.error(
+            "[Socket.IO] Surface update failed:",
+            error
+          );
+
+          reject("INTERNAL_ERROR", "Unable to update surface");
+        }
+      }
+    );
     console.log(
       `[Socket.IO] ${role} joined session ${sessionId}`
     );
@@ -109,19 +207,49 @@ io.on("connection", async (socket) => {
     return;
   }
 
-  if (role === "player") {
+if (role === "player") {
   try {
     await synchronizePlayerPresence(io, sessionId);
+
+    const session = await getSessionById(sessionId);
+
+    if (!session || session.status === "ended") {
+      socket.disconnect(true);
+      return;
+    }
+
+    const project = await getProjectById(session.projectId);
+
+    if (!project) {
+      socket.disconnect(true);
+      return;
+    }
+
+    const [surfaces, media] = await Promise.all([
+      getSurfacesByProject(project.id),
+      getMediaByProject(project.id)
+    ]);
+
+    socket.emit(SERVER_SOCKET_EVENTS.SCENE_LOAD, {
+      sessionId,
+      project,
+      surfaces,
+      media
+    });
+
+    console.log(
+      `[Socket.IO] Scene loaded: ${project.id} (${surfaces.length} surfaces)`
+    );
   } catch (error) {
     console.error(
-      "[Socket.IO] Failed to synchronize player connection:",
+      "[Socket.IO] Failed to initialize player scene:",
       error
     );
 
     socket.disconnect(true);
     return;
   }
-  }
+}
 
   socket.on("disconnect", (reason) => {
   console.log(

@@ -3,6 +3,14 @@ import { io, type Socket } from "socket.io-client";
 import { environment } from "../config/environment";
 import type { PlayerCredentials } from "./pairing.service";
 
+import {
+  SERVER_SOCKET_EVENTS,
+  type SurfaceUpdatedPayload,
+  type SurfaceMediaUpdatePayload,
+  type SceneLoadPayload
+} from "@projection/shared";
+
+
 let playerSocket: Socket | null = null;
 
 
@@ -12,8 +20,19 @@ export function connectPlayer(
   onDisconnected: (reason: string) => void,
   onError: (message: string) => void,
   onAuthenticationRejected: () => void,
-  onSessionEnded: () => void
+  onSessionEnded: () => void,
+ 
+  onSurfaceUpdated: (
+    payload: SurfaceUpdatedPayload
+  ) => void,
+  onSceneLoaded: (
+    payload: SceneLoadPayload
+  ) => void,
+  onSurfaceMediaUpdated: (
+    payload: SurfaceMediaUpdatePayload
+  ) => void
 ): void {
+
   disconnectPlayer();
 
   const socket = io(environment.serverUrl, {
@@ -74,6 +93,44 @@ socket.on("session:ended", (payload: unknown) => {
 
   onSessionEnded();
 });
+
+
+socket.on(
+  SERVER_SOCKET_EVENTS.SURFACE_UPDATE,
+  (payload: SurfaceUpdatedPayload) => {
+    if (payload.sessionId !== credentials.sessionId) {
+      return;
+    }
+
+    onSurfaceUpdated(payload);
+  }
+);
+
+socket.on(
+  SERVER_SOCKET_EVENTS.SCENE_LOAD,
+  (payload: SceneLoadPayload) => {
+    if (payload.sessionId !== credentials.sessionId) {
+      return;
+    }
+
+    onSceneLoaded(payload);
+  }
+);
+
+
+
+socket.on(
+  SERVER_SOCKET_EVENTS.SURFACE_MEDIA_UPDATE,
+  (payload: SurfaceMediaUpdatePayload) => {
+    if (payload.sessionId !== credentials.sessionId) {
+      return;
+    }
+
+    onSurfaceMediaUpdated(payload);
+  }
+);
+
+
 
 
   socket.connect();

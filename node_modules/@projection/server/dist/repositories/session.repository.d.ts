@@ -5,3 +5,4 @@ export declare function getSessionForUser(sessionId: string, userId: string): Pr
 export declare function endSession(sessionId: string, userId: string): Promise<ProjectionSession | null>;
 export declare function updatePlayerConnectionStatus(sessionId: string, status: ProjectionSession["playerConnectionStatus"]): Promise<boolean>;
 export declare function resetPlayerConnections(): Promise<number>;
+export declare function getActiveSessionIdsByProject(projectId: string): Promise<string[]>;

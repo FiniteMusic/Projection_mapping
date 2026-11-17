@@ -1,9 +1,12 @@
 
 import { Router } from "express";
+import type { Server } from "socket.io";
 
 import {
   createSurfaceRequestSchema,
-  updateSurfaceRequestSchema
+  updateSurfaceRequestSchema,
+  getSessionRoom,
+  SERVER_SOCKET_EVENTS
 } from "@projection/shared";
 
 import { requireAuth } from "../middleware/auth.middleware.js";
@@ -17,6 +20,17 @@ import {
   projectBelongsToUser,
   updateSurface
 } from "../repositories/surface.repository.js";
+
+import {
+  getActiveSessionIdsByProject
+} from "../repositories/session.repository.js";
+
+
+import {
+  getMediaById
+} from "../repositories/media.repository.js";
+
+
 
 export const surfaceRouter = Router();
 
@@ -104,7 +118,8 @@ surfaceRouter.get(
       return;
     }
 
-    res.status(200).json({ surface });
+   
+res.status(200).json({ surface });
   }
 );
 
@@ -166,7 +181,53 @@ surfaceRouter.patch(
       return;
     }
 
-    res.status(200).json({ surface });
+    
+res.status(200).json({ surface });
+
+
+if (changes.mediaId !== undefined) {
+  try {
+    const io = req.app.get("io") as Server;
+
+    const sessionIds = await getActiveSessionIdsByProject(
+      surface.projectId
+    );
+
+    if (sessionIds.length > 0) {
+      const media = surface.mediaId
+        ? await getMediaById(surface.mediaId)
+        : null;
+
+      if (surface.mediaId && !media) {
+        console.warn(
+          "[Socket.IO] Media not found:",
+          surface.mediaId
+        );
+      } else {
+        for (const sessionId of sessionIds) {
+          io.to(getSessionRoom(sessionId)).emit(
+            SERVER_SOCKET_EVENTS.SURFACE_MEDIA_UPDATE,
+            {
+              sessionId,
+              surfaceId: surface.id,
+              mediaId: surface.mediaId,
+              media
+            }
+          );
+        }
+
+        console.log(
+          `[Socket.IO] Surface media updated for ${sessionIds.length} sessions`
+        );
+      }
+    }
+  } catch (error) {
+    console.error(
+      "[Socket.IO] Surface media update failed:",
+      error
+    );
+  }
+}
   }
 );
 
