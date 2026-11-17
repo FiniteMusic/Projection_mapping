@@ -35,6 +35,7 @@ export const CLIENT_SOCKET_EVENTS = {
  * Eventos emitidos por el servidor
  * y recibidos por los clientes.
  */
+
 export const SERVER_SOCKET_EVENTS = {
   SESSION_STATE: "session:state",
 
@@ -42,6 +43,7 @@ export const SERVER_SOCKET_EVENTS = {
 
   SURFACE_CREATE: "surface:create",
   SURFACE_UPDATE: "surface:update",
+  SURFACE_MEDIA_UPDATE: "surface:media-update",
   SURFACE_DELETE: "surface:delete",
 
   MEDIA_PLAY: "media:play",
@@ -52,6 +54,7 @@ export const SERVER_SOCKET_EVENTS = {
   string,
   keyof ServerToClientEvents
 >;
+
 
 /**
  * Agrupación de eventos Socket.IO.

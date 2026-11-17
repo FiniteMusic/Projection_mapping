@@ -28,6 +28,7 @@ export declare const SERVER_SOCKET_EVENTS: {
     readonly SCENE_LOAD: "scene:load";
     readonly SURFACE_CREATE: "surface:create";
     readonly SURFACE_UPDATE: "surface:update";
+    readonly SURFACE_MEDIA_UPDATE: "surface:media-update";
     readonly SURFACE_DELETE: "surface:delete";
     readonly MEDIA_PLAY: "media:play";
     readonly MEDIA_PAUSE: "media:pause";
@@ -54,6 +55,7 @@ export declare const SOCKET_EVENTS: {
         readonly SCENE_LOAD: "scene:load";
         readonly SURFACE_CREATE: "surface:create";
         readonly SURFACE_UPDATE: "surface:update";
+        readonly SURFACE_MEDIA_UPDATE: "surface:media-update";
         readonly SURFACE_DELETE: "surface:delete";
         readonly MEDIA_PLAY: "media:play";
         readonly MEDIA_PAUSE: "media:pause";

@@ -98,6 +98,7 @@ export type {
   SurfaceCreatePayload,
   SurfaceUpdatePayload,
   SurfaceUpdatedPayload,
+  SurfaceMediaUpdatePayload,
   SurfaceDeletePayload,
   MediaPlaybackTarget,
   MediaPlayPayload,
