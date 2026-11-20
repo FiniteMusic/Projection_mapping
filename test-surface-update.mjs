@@ -20,12 +20,14 @@ const originalCorners = [
   { x: 0.15, y: 0.85 }
 ];
 
+
 const modifiedCorners = [
-  { x: 0.25, y: 0.2 },
-  { x: 0.9, y: 0.15 },
-  { x: 0.85, y: 0.9 },
+  { x: 0.40, y: 0.35 },
+  { x: 0.60, y: 0.35 },
+  { x: 0.85, y: 0.90 },
   { x: 0.15, y: 0.85 }
 ];
+
 
 const socket = io(serverUrl, {
   autoConnect: false,
@@ -67,7 +69,7 @@ async function runTest() {
 
     console.log("[TEST] Surface update accepted");
 
-    await delay(5000);
+    await delay(15000);
 
     console.log("[TEST] Restoring original coordinates...");
 
