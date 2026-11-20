@@ -1,2 +1,9 @@
+
 packages/server/storage/media/*
 !packages/server/storage/media/.gitkeep
+
+node_modules/
+.expo/
+dist/
+.env.local
+.env.*.local
