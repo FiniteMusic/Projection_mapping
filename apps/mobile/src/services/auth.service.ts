@@ -15,6 +15,9 @@ import {
 } from "@projection/shared";
 
 import { apiRequest } from "./api.service";
+import {
+  clearProjectionSession
+} from "./session-storage.service";
 
 const TOKEN_STORAGE_KEY = "projection_auth_tokens";
 
@@ -83,30 +86,51 @@ export async function getCurrentUser(): Promise<CurrentUserResponse> {
   );
 }
 
-export async function refreshSession(): Promise<RefreshTokenResponse> {
-  const tokens = await getStoredTokens();
 
-  if (!tokens) {
-    throw new Error("No refresh token available");
+let refreshPromise: Promise<RefreshTokenResponse> | null = null;
+
+export function refreshSession(): Promise<RefreshTokenResponse> {
+  if (refreshPromise) {
+    return refreshPromise;
   }
 
-  const response = await apiRequest<RefreshTokenResponse>(
-    AUTH_ROUTES.refresh,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        refreshToken: tokens.refreshToken
-      })
+  const currentRefresh = (async () => {
+    const tokens = await getStoredTokens();
+
+    if (!tokens) {
+      throw new Error("No refresh token available");
     }
-  );
 
-  await saveTokens(response.tokens);
+    const response = await apiRequest<RefreshTokenResponse>(
+      AUTH_ROUTES.refresh,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          refreshToken: tokens.refreshToken
+        })
+      }
+    );
 
-  return response;
+    await saveTokens(response.tokens);
+
+    return response;
+  })();
+
+  refreshPromise = currentRefresh;
+
+  void currentRefresh.finally(() => {
+    if (refreshPromise === currentRefresh) {
+      refreshPromise = null;
+    }
+  }).catch(() => {});
+
+  return currentRefresh;
 }
+
+
 
 export async function logout(): Promise<void> {
   const tokens = await getStoredTokens();
@@ -127,9 +151,14 @@ export async function logout(): Promise<void> {
       );
     }
   } finally {
-    await clearTokens();
+    try {
+      await clearProjectionSession();
+    } finally {
+      await clearTokens();
+    }
   }
 }
+
 
 export async function restoreSession(): Promise<User | null> {
   const tokens = await getStoredTokens();

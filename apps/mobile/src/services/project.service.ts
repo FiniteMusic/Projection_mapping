@@ -7,41 +7,24 @@ import {
   type UpdateProjectRequest
 } from "@projection/shared";
 
-import { apiRequest } from "./api.service";
-import { getStoredTokens } from "./auth.service";
-
-async function getAuthorizationHeaders() {
-  const tokens = await getStoredTokens();
-
-  if (!tokens) {
-    throw new Error("No authenticated session");
-  }
-
-  return {
-    Authorization: `Bearer ${tokens.accessToken}`
-  };
-}
+import {
+  authenticatedRequest
+} from "./authenticated-api.service";
 
 export async function getProjects(): Promise<ProjectListResponse> {
-  const headers = await getAuthorizationHeaders();
-
-  return apiRequest<ProjectListResponse>(
-    PROJECT_ROUTES.base,
-    { headers }
+  return authenticatedRequest<ProjectListResponse>(
+    PROJECT_ROUTES.base
   );
 }
 
 export async function createProject(
   data: CreateProjectRequest
 ): Promise<ProjectResponse> {
-  const headers = await getAuthorizationHeaders();
-
-  return apiRequest<ProjectResponse>(
+  return authenticatedRequest<ProjectResponse>(
     PROJECT_ROUTES.base,
     {
       method: "POST",
       headers: {
-        ...headers,
         "Content-Type": "application/json"
       },
       body: JSON.stringify(data)
@@ -52,11 +35,8 @@ export async function createProject(
 export async function getProject(
   projectId: string
 ): Promise<ProjectResponse> {
-  const headers = await getAuthorizationHeaders();
-
-  return apiRequest<ProjectResponse>(
-    PROJECT_ROUTES.byId(projectId),
-    { headers }
+  return authenticatedRequest<ProjectResponse>(
+    PROJECT_ROUTES.byId(projectId)
   );
 }
 
@@ -64,17 +44,26 @@ export async function updateProject(
   projectId: string,
   data: UpdateProjectRequest
 ): Promise<ProjectResponse> {
-  const headers = await getAuthorizationHeaders();
-
-  return apiRequest<ProjectResponse>(
+  return authenticatedRequest<ProjectResponse>(
     PROJECT_ROUTES.byId(projectId),
     {
       method: "PATCH",
       headers: {
-        ...headers,
         "Content-Type": "application/json"
       },
       body: JSON.stringify(data)
+    }
+  );
+}
+
+
+export async function deleteProject(
+  projectId: string
+): Promise<void> {
+  return authenticatedRequest<void>(
+    PROJECT_ROUTES.byId(projectId),
+    {
+      method: "DELETE"
     }
   );
 }

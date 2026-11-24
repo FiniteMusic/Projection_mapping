@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import {
+  access,
   mkdir,
   open,
   rename,
@@ -13,6 +14,7 @@ import { fileURLToPath } from "node:url";
 
 import sharp from "sharp";
 import ffprobe from "ffprobe-static";
+import ffmpegStatic from "ffmpeg-static";
 
 import {
   MEDIA_LIMITS,
@@ -25,6 +27,15 @@ import type {
   SupportedMediaMimeType
 } from "@projection/shared";
 
+const ffmpegPath: string | null =
+  typeof ffmpegStatic === "string"
+    ? ffmpegStatic
+    : (
+        ffmpegStatic as {
+          default?: string | null;
+        }
+      ).default ?? null;
+
 const serviceDirectory = path.dirname(
   fileURLToPath(import.meta.url)
 );
@@ -32,6 +43,11 @@ const serviceDirectory = path.dirname(
 export const MEDIA_STORAGE_DIRECTORY = path.resolve(
   serviceDirectory,
   "../../storage/media"
+);
+
+export const MEDIA_THUMBNAIL_DIRECTORY = path.resolve(
+  serviceDirectory,
+  "../../storage/thumbnails"
 );
 
 const MIME_EXTENSIONS: Record<
@@ -349,3 +365,120 @@ export async function removeMediaFile(
 ): Promise<void> {
   await rm(filePath, { force: true });
 }
+
+export async function removeVideoThumbnail(
+  mediaId: string
+): Promise<void> {
+  const thumbnailPath = path.join(
+    MEDIA_THUMBNAIL_DIRECTORY,
+    `${mediaId}.jpg`
+  );
+
+  await rm(thumbnailPath, {
+    force: true
+  });
+}
+
+export async function generateVideoThumbnail(
+  videoPath: string,
+  mediaId: string
+): Promise<string> {
+  if (!ffmpegPath) {
+  throw new Error("FFmpeg executable not available");
+  }
+
+  await mkdir(MEDIA_THUMBNAIL_DIRECTORY, {
+    recursive: true
+  });
+
+  const thumbnailPath = path.join(
+    MEDIA_THUMBNAIL_DIRECTORY,
+    `${mediaId}.jpg`
+  );
+
+  try {
+    await access(thumbnailPath);
+    return thumbnailPath;
+  } catch {
+    // Generate the thumbnail if it does not exist.
+  }
+
+  const temporaryPath = path.join(
+    MEDIA_THUMBNAIL_DIRECTORY,
+    `${mediaId}-${randomUUID()}.jpg`
+  );
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(ffmpegPath!, [
+        "-hide_banner",
+        "-loglevel", "error",
+        "-nostdin",
+        "-y",
+        "-ss", "0",
+        "-i", videoPath,
+        "-frames:v", "1",
+        "-vf", "scale=320:-2",
+        "-q:v", "3",
+        temporaryPath
+      ]);
+
+      let stderr = "";
+      let settled = false;
+
+      const timeout = setTimeout(() => {
+        child.kill();
+        finish(new Error("Thumbnail generation timed out"));
+      }, 15000);
+
+      function finish(error?: Error) {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timeout);
+
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      }
+
+      child.stderr.on("data", chunk => {
+        stderr += chunk.toString();
+      });
+
+      child.on("error", error => {
+        finish(error);
+      });
+
+      child.on("close", code => {
+        if (code !== 0) {
+          finish(
+            new Error(
+              `FFmpeg thumbnail generation failed: ${stderr}`
+            )
+          );
+          return;
+        }
+
+        finish();
+      });
+    });
+
+    await rename(temporaryPath, thumbnailPath);
+
+    return thumbnailPath;
+  } catch (error) {
+    await rm(temporaryPath, {
+      force: true
+    }).catch(() => {});
+
+    throw error;
+  }
+}
+
+
+

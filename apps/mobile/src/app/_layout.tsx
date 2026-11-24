@@ -44,6 +44,19 @@ function RootNavigator() {
           headerShown: false
         }}
       />
+      <Stack.Screen
+        name="project/surfaces/[projectId]"
+        options={{
+          animation: "slide_from_right"
+        }}
+      />
+
+      <Stack.Screen
+        name="project/surfaces/detail/[surfaceId]"
+        options={{
+          animation: "slide_from_right"
+        }}
+      />
     </Stack>
     
   );

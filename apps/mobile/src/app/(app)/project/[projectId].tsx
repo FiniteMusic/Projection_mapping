@@ -2,6 +2,7 @@
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,7 +25,8 @@ import {
   Layers3,
   Monitor,
   Settings2,
-  Pencil
+  Pencil,
+  Trash2
 } from "lucide-react-native";
 
 import type {
@@ -32,8 +34,13 @@ import type {
   ProjectStatus
 } from "@projection/shared";
 
+
+
 import { colors } from "@/constants/theme";
-import { getProject } from "@/services/project.service";
+import {
+  getProject,
+  deleteProject
+} from "@/services/project.service";
 
 const statusLabels: Record<ProjectStatus, string> = {
   draft: "Borrador",
@@ -63,6 +70,7 @@ export default function ProjectDetailScreen() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -107,6 +115,49 @@ export default function ProjectDetailScreen() {
       };
     }, [projectId, reloadKey])
   );
+
+
+  function handleDeleteProject() {
+    if (!project || deleting) {
+      return;
+    }
+
+    Alert.alert(
+      "Eliminar proyecto",
+      `¿Estás seguro de que deseas eliminar "${project.name}"? Esta acción es permanente y también eliminará su contenido asociado.`,
+      [
+        {
+          text: "Cancelar",
+          style: "cancel"
+        },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            if (deleting) {
+              return;
+            }
+
+            setDeleting(true);
+
+            try {
+              await deleteProject(project.id);
+
+              router.replace("/(app)/(tabs)/projects");
+            } catch (error) {
+              Alert.alert(
+                "No se pudo eliminar",
+                "Ocurrió un problema al eliminar el proyecto. Inténtalo nuevamente."
+              );
+            } finally {
+              setDeleting(false);
+            }
+          }
+        }
+      ]
+    );
+  }
+
 
   return (
     <View style={styles.container}>
@@ -275,7 +326,18 @@ export default function ProjectDetailScreen() {
                 Contenido del proyecto
               </Text>
 
-              <View style={styles.contentCard}>
+              
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: "/(app)/project/surfaces/[projectId]",
+                    params: { projectId: project.id }
+                  })
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Administrar superficies"
+                style={styles.contentCard}
+              >
                 <View style={styles.contentIcon}>
                   <Layers3
                     size={25}
@@ -297,9 +359,17 @@ export default function ProjectDetailScreen() {
                   size={21}
                   color={colors.textDarkSecondary}
                 />
-              </View>
+              </Pressable>
 
-              <View style={styles.contentCard}>
+              <Pressable
+                style={styles.contentCard}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(app)/project/media/[projectId]",
+                    params: { projectId: project.id }
+                  })
+                }
+              >
                 <View style={styles.contentIcon}>
                   <ImageIcon
                     size={25}
@@ -321,7 +391,7 @@ export default function ProjectDetailScreen() {
                   size={21}
                   color={colors.textDarkSecondary}
                 />
-              </View>
+              </Pressable>
 
               <View style={styles.infoCard}>
                 <View style={styles.sectionHeading}>
@@ -356,6 +426,36 @@ export default function ProjectDetailScreen() {
                     Actualizado: {formatDate(project.updatedAt)}
                   </Text>
                 </View>
+
+                
+                <Pressable
+                  onPress={handleDeleteProject}
+                  disabled={deleting}
+                  accessibilityRole="button"
+                  accessibilityLabel="Eliminar proyecto"
+                  accessibilityState={{ disabled: deleting }}
+                  style={({ pressed }) => [
+                    styles.deleteButton,
+                    (pressed || deleting) && styles.deleteButtonPressed
+                  ]}
+                >
+                  {deleting ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="#DC2626"
+                    />
+                  ) : (
+                    <Trash2
+                      size={20}
+                      color="#DC2626"
+                    />
+                  )}
+
+                  <Text style={styles.deleteButtonText}>
+                    {deleting ? "Eliminando proyecto..." : "Eliminar proyecto"}
+                  </Text>
+                </Pressable>
+
               </View>
             </>
           )}
@@ -555,6 +655,30 @@ editButtonText: {
   fontSize: 16,
   fontWeight: "800",
   textAlign: "center"
+},
+
+deleteButton: {
+  width: "100%",
+  minHeight: 56,
+  borderRadius: 16,
+  borderWidth: 1,
+  borderColor: "#FECACA",
+  backgroundColor: "#FEF2F2",
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 12,
+  paddingHorizontal: 20
+},
+deleteButtonPressed: {
+  opacity: 0.65
+},
+deleteButtonText: {
+  color: "#DC2626",
+  fontSize: 16,
+  fontWeight: "800",
+  textAlign: "center"
 }
+
 
 });

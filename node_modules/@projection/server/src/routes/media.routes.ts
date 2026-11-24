@@ -28,8 +28,10 @@ import {
   inspectMediaFile,
   storeMediaFile,
   removeMediaFile,
+  generateVideoThumbnail,
   MEDIA_STORAGE_DIRECTORY,
-  MediaValidationError
+  MediaValidationError,
+  removeVideoThumbnail
 } from "../services/media.service.js";
 
 import {
@@ -262,6 +264,59 @@ mediaRouter.get(
   }
 );
 
+
+mediaRouter.get(
+  "/media/:mediaId/thumbnail",
+  async (req, res, next) => {
+    try {
+      const mediaId = String(req.params.mediaId);
+
+      const media = await getMediaForUser(
+        mediaId,
+        req.user!.id
+      );
+
+      if (!media) {
+        res.status(404).json({
+          error: "MEDIA_NOT_FOUND"
+        });
+        return;
+      }
+
+      if (media.type !== "video") {
+        res.status(400).json({
+          error: "INVALID_MEDIA_TYPE",
+          message: "Thumbnails are only available for videos"
+        });
+        return;
+      }
+
+      const videoPath = path.join(
+        MEDIA_STORAGE_DIRECTORY,
+        path.basename(media.url)
+      );
+
+      const thumbnailPath = await generateVideoThumbnail(
+        videoPath,
+        mediaId
+      );
+
+      res.type("jpeg");
+      res.setHeader("Cache-Control", "private, max-age=3600");
+
+      res.sendFile(thumbnailPath, error => {
+        if (error && !res.headersSent) {
+          next(error);
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+
+
 mediaRouter.get(
   "/media/:mediaId",
   async (req, res) => {
@@ -349,6 +404,10 @@ mediaRouter.delete(
 
     try {
       await removeMediaFile(filePath);
+
+      if (existing.type === "video") {
+        await removeVideoThumbnail(mediaId);
+      }
     } catch (error) {
       console.error(
         "[MEDIA] File cleanup failed:",
