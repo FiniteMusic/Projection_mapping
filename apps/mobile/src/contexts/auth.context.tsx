@@ -23,6 +23,10 @@ import {
   register as registerRequest,
 } from "@/services/auth.service";
 
+import {
+  subscribeToSessionExpired
+} from "@/services/session-events.service";
+
 interface AuthContextValue {
   user: User | null;
   isAuthenticated: boolean;
@@ -43,6 +47,12 @@ export function AuthProvider({
 }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    return subscribeToSessionExpired(() => {
+      setUser(null);
+    });
+  }, []);
 
   const signUp = useCallback(
     async (credentials: RegisterRequest) => {
